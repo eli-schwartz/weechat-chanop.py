@@ -310,11 +310,12 @@ import os
 import re
 import time
 import string
+import sys
 import getopt
 from collections import defaultdict
 from shelve import DbfilenameShelf as Shelf
 
-chars = string.maketrans('', '')
+PY3 = sys.version_info.major >= 3
 
 # -----------------------------------------------------------------------------
 # Messages
@@ -411,6 +412,14 @@ def get_config_specific(config, server='', channel=''):
 # Utils
 
 now = lambda: int(time.time())
+
+if PY3:
+    def removechars(s, removed):
+        s.translate(str.maketrans('', '', removed))
+else:
+    chars = string.maketrans('', '')
+    def removechars(s, removed):
+        s.translate(chars, removed)
 
 def time_elapsed(elapsed, ret=None, level=2):
     time_hour = 3600
@@ -576,9 +585,9 @@ def catchExceptions(f):
 def callback(method):
     """This function will take a bound method or function and make it a callback."""
     # try to create a descriptive and unique name.
-    func = method.func_name
+    func = method.__name__
     try:
-        im_self = method.im_self
+        im_self = method.__self__
         try:
             inst = im_self.__name__
         except AttributeError:
@@ -660,7 +669,7 @@ class Infolist(object):
 
     def __iter__(self):
         def generator():
-            while self.next():
+            while next(self):
                 yield self
         return generator()
 
@@ -1052,7 +1061,7 @@ class IrcCommands(ChanopBuffers):
 
     def checkOp(self):
         infolist = nick_infolist(self.server, self.channel)
-        while infolist.next():
+        while next(infolist):
             if infolist['name'] == self.nick:
                 return '@' in infolist['prefixes']
         return False
@@ -1141,8 +1150,12 @@ class IrcCommands(ChanopBuffers):
 # -----------------------------------------------------------------------------
 # User/Mask classes
 
-_rfc1459trans = string.maketrans(string.ascii_uppercase + r'\[]',
-                                 string.ascii_lowercase + r'|{}')
+if PY3:
+    _rfc1459trans = str.maketrans(string.ascii_uppercase + r'\[]',
+                                     string.ascii_lowercase + r'|{}')
+else:
+    _rfc1459trans = string.maketrans(string.ascii_uppercase + r'\[]',
+                                     string.ascii_lowercase + r'|{}')
 def IRClower(s):
     return s.translate(_rfc1459trans)
 
@@ -1218,7 +1231,7 @@ class ChannelWatchlistSet(CaseInsensibleSet):
         self._updated = True
         infolist = Infolist('option', 'plugins.var.python.%s.watchlist.*' %SCRIPT_NAME)
         n = len('python.%s.watchlist.' %SCRIPT_NAME)
-        while infolist.next():
+        while next(infolist):
             name = infolist['option_name']
             value = infolist['value']
             server = name[n:]
@@ -1688,7 +1701,7 @@ class UserCache(ServerChannelDict):
             #debug('invalid buffer')
             return users
 
-        while infolist.next():
+        while next(infolist):
             nick = infolist['name']
             host = infolist['host']
             if host:
@@ -1829,13 +1842,13 @@ class CommandChanop(Command, ChanopBuffers):
 
     def has_op(self, nick):
         nicks = self.nick_infolist()
-        while nicks.next():
+        while next(nicks):
             if nicks['name'] == nick:
                 return '@' in nicks['prefixes']
 
     def has_voice(self, nick):
         nicks = self.nick_infolist()
-        while nicks.next():
+        while next(nicks):
             if nicks['name'] == nick:
                 return '+' in nicks['prefixes']
 
@@ -2478,7 +2491,7 @@ def signal_parse(f):
         hostmask = signal_data[1:signal_data.find(' ')]
         #debug('%s %s', signal, signal_data)
         return f(server, channel, nick, hostmask, signal_data)
-    decorator.func_name = f.func_name
+    decorator.__name__ = f.__name__
     return decorator
 
 def signal_parse_no_channel(f):
@@ -2492,7 +2505,7 @@ def signal_parse_no_channel(f):
             #debug('%s %s', signal, signal_data)
             return f(server, channels, nick, hostmask, signal_data)
         return WEECHAT_RC_OK
-    decorator.func_name = f.func_name
+    decorator.__name__ = f.__name__
     return decorator
 
 isupport = {}
@@ -2594,7 +2607,7 @@ def mode_cb(server, channel, nick, opHostmask, signal_data):
 
     # check if there are interesting modes
     servermodes = supported_modes(server)
-    s = modes.translate(chars, '+-') # remove + and -
+    s = removechars(modes, '+-')
     if not set(servermodes).intersection(s):
         return WEECHAT_RC_OK
 
@@ -2622,7 +2635,7 @@ def mode_cb(server, channel, nick, opHostmask, signal_data):
     usermodes = ''.join(map(lambda c: c.isalpha() and c or '', prefix))
     chanmodes = chanmodes.split(',')
     # modes not supported by script, like +e +I
-    notsupported = chanmodes[0].translate(chars, servermodes)
+    notsupported = removechars(chanmodes[0], servermodes)
     modes_with_args = chanmodes[1] + usermodes + notsupported
     modes_with_args_when_set = chanmodes[2]
     for c in modes:
@@ -3146,7 +3159,7 @@ if __name__ == '__main__' and import_ok and \
     prefix = 'python.%s.chanmask' % SCRIPT_NAME
     infolist = Infolist('option', 'plugins.var.%s.*' % prefix)
     n = len(prefix)
-    while infolist.next():
+    while next(infolist):
         option = infolist['option_name'][n + 1:]
         server, channel, mode, mask = option.split('.', 3)
         if mode in modeCache:
