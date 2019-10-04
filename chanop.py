@@ -1061,7 +1061,7 @@ class IrcCommands(ChanopBuffers):
 
     def checkOp(self):
         infolist = nick_infolist(self.server, self.channel)
-        while next(infolist):
+        while infolist.next():
             if infolist['name'] == self.nick:
                 return '@' in infolist['prefixes']
         return False
@@ -1231,7 +1231,7 @@ class ChannelWatchlistSet(CaseInsensibleSet):
         self._updated = True
         infolist = Infolist('option', 'plugins.var.python.%s.watchlist.*' %SCRIPT_NAME)
         n = len('python.%s.watchlist.' %SCRIPT_NAME)
-        while next(infolist):
+        while infolist.next():
             name = infolist['option_name']
             value = infolist['value']
             server = name[n:]
@@ -1701,7 +1701,7 @@ class UserCache(ServerChannelDict):
             #debug('invalid buffer')
             return users
 
-        while next(infolist):
+        while infolist.next():
             nick = infolist['name']
             host = infolist['host']
             if host:
@@ -1842,13 +1842,13 @@ class CommandChanop(Command, ChanopBuffers):
 
     def has_op(self, nick):
         nicks = self.nick_infolist()
-        while next(nicks):
+        while nicks.next():
             if nicks['name'] == nick:
                 return '@' in nicks['prefixes']
 
     def has_voice(self, nick):
         nicks = self.nick_infolist()
-        while next(nicks):
+        while nicks.next():
             if nicks['name'] == nick:
                 return '+' in nicks['prefixes']
 
@@ -3159,7 +3159,7 @@ if __name__ == '__main__' and import_ok and \
     prefix = 'python.%s.chanmask' % SCRIPT_NAME
     infolist = Infolist('option', 'plugins.var.%s.*' % prefix)
     n = len(prefix)
-    while next(infolist):
+    while infolist.next():
         option = infolist['option_name'][n + 1:]
         server, channel, mode, mask = option.split('.', 3)
         if mode in modeCache:
