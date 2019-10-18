@@ -1252,7 +1252,7 @@ class ServerChannelDict(CaseInsensibleDict):
             return [ chan for serv, chan in self if serv == server ]
 
     def purge(self):
-        for key in self.keys():
+        for key in list(self):
             if key not in chanopChannels:
                 debug('removing %s mask list, not in watchlist.', key)
                 del self[key]
@@ -1535,7 +1535,7 @@ class MaskSync(object):
         if (server, channel) in maskCache:
             masklist = maskCache[server, channel]
             banmasks = [ L[0] for L in self._maskbuffer[server, channel] ]
-            for mask in masklist.keys():
+            for mask in list(masklist):
                 if mask not in banmasks:
                     del masklist[mask]
 
@@ -1612,7 +1612,7 @@ class ServerUserList(CaseInsensibleDict):
     def purge(self):
         """Purge old nicks"""
         n = now()
-        for nick, user in self.items():
+        for nick, user in self.copy().items():
             if user._channels < 1 and (n - user.seen) > self._purge_time:
                 #debug('purging old user: %s' % nick)
                 del self[nick]
@@ -1675,7 +1675,7 @@ class UserList(ServerUserList):
     def purge(self):
         """Purge old nicks"""
         n = now()
-        for nick, user in self._purge_list.items():
+        for nick, user in self._purge_list.copy().items():
             if (n - user.seen) > self._purge_time:
                 #debug('%s %s: forgeting about %s', self.server, self.channel, nick)
                 user._channels -= 1
